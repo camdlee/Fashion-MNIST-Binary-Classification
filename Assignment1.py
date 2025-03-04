@@ -30,16 +30,7 @@ print("Class distribution in training set: ", np.unique(y_train))
 class_names = ['T-shirt', 'Trouser', 'Pullover', 'Dress', 'Coat',
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
-# Filtering Data for Trouser(1) and Pullover(2)
-# train_filter = np.where((y_train == 1) | (y_train == 2))
-# test_filter = np.where((y_test == 1) | (y_test == 2))
 
-# x_train_filtered = x_train[train_filter]
-# y_train_filtered = y_train[train_filter]
-# x_test_filtered = x_test[test_filter]
-# y_test_filtered = y_test[test_filter]
-
-# print(f"Filtered dataset size: {x_train_filtered.shape[0]} training samples, {x_test_filtered.shape[0]} testing samples")
 
 ### ================== BINARIZATION OF DATA ====================
 # Threshold, 'del', to be 127
@@ -96,140 +87,194 @@ print("\nImplementing Naive Bayes from scratch...")
 # # Using Naive Bayes, we will classify if the image belongs in 'Trouser' or in 'Pullover'
 # # We must compute P(class/features) through code - no library allowed
 # # Make Class Predictions based on the higher value of these computed probabilities
-#
-# def train_naive_bayes(x, y):
-#     """
-#     Train Naive Bayes Classifier
-#     :param x:
-#     :param y:
-#     :return:
-#     - prior: prior probabilities for each class
-#     - likelihood: likelihood probabilities P(feature/class)
-#     - classes: unique class labels
-#     """
-#     classes = np.unique(y)
-#     n_samples, n_features = x.shape
-#     n_classes = len(classes)
-#
-#     # calculating prior probabilities P(class)
-#     prior = np.zeros(n_classes)
-#     for i, c in enumerate(classes):
-#         prior[i] = np.sum(y == c) / n_samples
-#
-#     # Calculate likelihood P(features/class) with Laplace smoothing
-#     likelihood = np.zeros((n_classes, n_features, 2))
-#     for i, c in enumerate(classes):
-#         x_c = x[y == c]
-#         for j in range(n_features):
-#             # Count occurrences of feature values (0, 1) for this class
-#             count_0 = np.sum(x_c[:, j] == 0)
-#             count_1 = np.sum(x_c[:, j] == 1)
-#             total = x_c.shape[0]
-#
-#             # Apply laplace smoothing
-#             likelihood[i, j, 0] = (count_0 + 1) / (total+2)
-#             likelihood[i, j, 1] = (count_1 + 1) / (total+2)
-#
-#     return prior, likelihood, classes
-#
-# def predict_proba_naive_bayes(x, prior, likelihood, classes):
-#     """
-#     Calculate the class probabilities using Naive Bayes
-#     :param x:
-#     :param prior:
-#     :param likelihood:
-#     :param classes:
-#     :return: probability for each sample and each class
-#     """
-#     n_samples = x.shape[0]
-#     n_classes = len(classes)
-#
-#     # initialize probabilities array
-#     probas = np.zeros((n_samples, n_classes))
-#
-#     # Calculate P(class|features) for each sample
-#     for i in range(n_samples):
-#         for c in range(n_classes):
-#             # Start with prior probability (in log space to avoid underflow)
-#             log_proba = np.log(prior[c])
-#
-#             # Multiply by likelihood of each feature
-#             for j in range(x.shape[1]):
-#                 feature_value = x[i, j]
-#                 log_proba += np.log(likelihood[c, j, feature_value])
-#
-#             probas[i, c] = log_proba
-#
-#     # Convert log probabilities to probabilities and normalize
-#     max_log_proba = np.max(probas, axis=1, keepdims=True)
-#     probas = np.exp(probas - max_log_proba)  # Subtract max for numerical stability
-#     probas /= np.sum(probas, axis=1, keepdims=True)
-#
-#     return probas
-#
-# def predict_naive_bayes(X, prior, likelihood, classes):
-#     """
-#     Make class predictions using Naive Bayes
-#     Returns:
-#     - predictions: predicted class for each sample
-#     """
-#     probas = predict_proba_naive_bayes(X, prior, likelihood, classes)
-#     return np.argmax(probas, axis=1)
-#
-#
-# # Train Naive Bayes model using functions
-# prior_nb, likelihood_nb, classes_nb = train_naive_bayes(x_train_bin, y_train_binary)
-#
-# # Predict on train and test sets
-# y_train_pred_nb = predict_naive_bayes(x_train_bin, prior_nb, likelihood_nb, classes_nb)
-# y_test_pred_nb = predict_naive_bayes(x_test_bin, prior_nb, likelihood_nb, classes_nb)
-#
-# # Get probability predictions for ROC curve
-# y_train_prob_nb = predict_proba_naive_bayes(x_train_bin, prior_nb, likelihood_nb, classes_nb)[:, 1]
-# y_test_prob_nb = predict_proba_naive_bayes(x_test_bin, prior_nb, likelihood_nb, classes_nb)[:, 1]
-#
-#
-# # ========== ROC CURVE IMPLEMENTATION ==========
-# print("Creating ROC curve from scratch...")
-#
-# def plot_roc_curve(y_true, y_prob, title="ROC Curve", save_path=None):
-#     """Plot ROC curve from scratch and calculate AUC"""
-#     thresholds = np.linspace(0, 1, 100)
-#     tpr_list = []
-#     fpr_list = []
-#
-#     for threshold in thresholds:
-#         y_pred = (y_prob >= threshold).astype(int)
-#
-#         # Calculate TPR and FPR
-#         tp = np.sum((y_pred == 1) & (y_true == 1))
-#         fp = np.sum((y_pred == 1) & (y_true == 0))
-#         tn = np.sum((y_pred == 0) & (y_true == 0))
-#         fn = np.sum((y_pred == 0) & (y_true == 1))
-#
-#         tpr = tp / (tp + fn) if (tp + fn) > 0 else 0
-#         fpr = fp / (fp + tn) if (fp + tn) > 0 else 0
-#
-#         tpr_list.append(tpr)
-#         fpr_list.append(fpr)
-#
-#     # Calculate AUC
-#     auc = 0
-#     for i in range(len(fpr_list) - 1):
-#         auc += (fpr_list[i+1] - fpr_list[i]) * (tpr_list[i+1] + tpr_list[i]) / 2
-#
-#     # Plot ROC curve
-#     plt.figure(figsize=(8, 6))
-#     plt.plot(fpr_list, tpr_list, 'b-', linewidth=2)
-#     plt.plot([0, 1], [0, 1], 'k--', linewidth=2)
-#     plt.xlabel('False Positive Rate')
-#     plt.ylabel('True Positive Rate')
-#     plt.title(f'{title} (AUC = {auc:.3f})')
-#     plt.grid(True)
-#
-#     if save_path:
-#         plt.savefig(save_path)
-#
-#     plt.show()
-#
-#     return auc
+
+# need to calculate the Prior probability - represents how likely each class is to occur before we look at any features (pixels)
+# What is the chance an image is a Trouser (or pullover) if I do not know anything about it?
+# Matters because of potential class imbalance in data, Bayesian foundation requires prior probability as part of equation
+# incorporates the existing knowledge of frequency of classes in prediction
+
+# need likelihood calculation to indicate how compatible the observed pixel values are with each class
+# in other words "If this image is a trouser, how likely would I be able to see this specific pattern of pixels?"
+# Matters because it measures how well the observed features match what we'd expect for each class
+# Some features (pixels) may be more important than others, like a center pixel vs an outer pixel
+# forms core of predictive model - patterns that distinguish one class from another
+
+# Naive Bayes combines both - Prior tells us what we know before looking at image (class frequencies),
+# likelihood tells us how well the images matches each class pattern
+# posterior is the final probability after considering both prior knowledge and evidence
+
+# Prior Probabilities
+n_samples = len(x_train_filtered)
+classes = np.unique(y_train_filtered)
+n_classes = len(classes)
+
+# Initialize arrays to store our probabilities
+class_priors = np.zeros(n_classes)
+pixel_probs = np.zeros((n_classes, x_train_filtered.shape[1], 2))
+
+for i, c in enumerate(classes):
+    # every sample of this class
+    x_c = x_train_filtered[y_train_filtered == c]
+
+    # prior probability = count of class / total samples in data
+    class_priors[i] = len(x_c) / n_samples
+
+    # calc prob of each pixel being 1 for this class
+    # add 1 for Laplace smoothing (avoid zero probabilities)
+    n_samples_c = len(x_c)
+
+    # count how many times each pixel is 1 in this class
+    pixel_one_counts = np.sum(x_c, axis=0) + 1 # +1 is Laplace smoothing
+
+    # probability of pixel being 1 given the class (with laplace smoothing)
+    pixel_probs[i, :, 1] = pixel_one_counts / (n_samples_c +2)
+
+    # probability of pixel being 0 given the class (with laplace smoothing)
+    pixel_probs[i, :, 0] = 1 - pixel_probs[i, :, 1]
+
+print("Prior probabilities: ")
+for i, c in enumerate(classes):
+    print(f'Class {c}: {class_priors[i]:.4f}')
+
+# function to predict probabilities using our trained model
+def predict_proba(x, classes, class_priors, pixel_probs):
+    n_samples = x.shape[0]
+    n_classes = len(classes)
+
+    # initialize log probabilities array
+    log_probs = np.zeros((n_samples, n_classes))
+
+    # calculate log probabilities for each class
+    for i, c in enumerate(classes):
+        # start with log of class prior
+        class_prior = np.log(class_priors[i])
+
+        # calculate log likelihood for each pixel
+        pixel_probs_for_values = np.zeros(x.shape)
+        for j in range(n_samples):
+
+            for k in range(x.shape[1]):
+                # select either P(pixel=0|class) or P(pixel=1|class) based on actual pixel value
+                pixel_probs_for_values[j, k] = pixel_probs[i, k, x[j, k]]
+
+        # sum the log probabilities of all pixels
+        log_probs[:, i] = class_prior + np.sum(np.log(pixel_probs_for_values), axis=1)
+
+    # Convert from log probabilities to actual probabilities
+    # Subtract max for numerical stability
+    max_log_probs = np.max(log_probs, axis=1, keepdims=True)
+    ex_probs = np.exp(log_probs - max_log_probs)
+    probs = ex_probs / np.sum(ex_probs, axis=1, keepdims=True)
+
+    return probs
+
+# Function to predict class labels
+def predict(x, classes, class_priors, pixel_probs):
+    probs = predict_proba(x, classes, class_priors, pixel_probs)
+    return classes[np.argmax(probs, axis=1)]
+
+# Use prediction function to see what the predicted y values would be
+y_train_pred = predict(x_train_filtered, classes, class_priors, pixel_probs)
+y_test_pred = predict(x_test_filtered, classes, class_priors, pixel_probs)
+
+# calculate the accuracy of the predictions to filtered data
+# check y predicted against true values
+train_accuracy = np.mean(y_train_filtered == y_train_pred)
+test_accuracy = np.mean(y_test_filtered == y_test_pred)
+
+print(f"Training accuracy: {train_accuracy:.4f}")
+print(f"Testing accuracy: {test_accuracy:.4f}")
+
+
+# Calculate ROC manually and plot ROC curve
+def calculate_roc_curve(y_true, probs, positive_class):
+    # parameters : y_true=true labels, probs = predicted probabilities for the pos class, positive class = class to treat as positive
+    # Convert to binary problem (1 for positive class, 0 for others)
+    y_binary = (y_true == positive_class).astype(int)
+
+    # sort probabilities in descending order
+    sorted_indices = np.argsort(probs)[::-1]
+    y_binary_sorted = y_binary[sorted_indices]
+
+    # Calculated TPR and FPR for different thresholds
+    tpr_list = []
+    fpr_list = []
+
+    tp = 0
+    fp = 0
+    n_positive = np.sum(y_binary)
+    n_negative = len(y_binary) - n_positive
+
+    # starting with threshold high enough that no samples are classified as positive
+    tpr_list.append(0)
+    fpr_list.append(0)
+
+    # add point for each sample as we lower the threshold
+    for i in range(len(y_binary_sorted)):
+        if y_binary_sorted[i] == 1:
+            tp += 1
+        else:
+            fp += 1
+
+        tpr = tp / n_positive
+        fpr = fp / n_negative
+
+        # Don't add duplicate posts (when multiple samples have same probability)
+        if i < len(y_binary_sorted) - 1 and probs[sorted_indices[i]] == probs[sorted_indices[i + 1]]:
+            continue
+
+        tpr_list.append(tpr)
+        fpr_list.append(fpr)
+
+    # Calculate AUC using the trapezoidal rule
+    auc = 0
+    for i in range(1, len(fpr_list)):
+        auc += (fpr_list[i] - fpr_list[i - 1]) * (tpr_list[i] + tpr_list[i - 1]) / 2
+
+    return tpr_list, fpr_list, auc
+
+# calculate probabilities for the roc curve
+test_probs = predict_proba(x_test_filtered, classes, class_priors, pixel_probs)
+
+plt.figure(figsize=(10,6))
+
+colors = ['blue', 'red']
+class_names = ['Trouser', 'Pullover']
+
+for i, c in enumerate(classes):
+    # Get the column index for this class in the probabilities array
+    class_idx = np.where(classes == c)[0][0]
+
+    # Calculate ROC curve
+    tpr, fpr, auc = calculate_roc_curve(y_test_filtered, test_probs[:, class_idx], c)
+
+    # Plot ROC curve
+    plt.plot(fpr, tpr, color=colors[i], lw=2,
+             label=f'{class_names[i]} (AUC = {auc:.4f})')
+
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve for Naive Bayes Classifier')
+plt.legend(loc="lower right")
+plt.grid(True)
+plt.savefig('naive_bayes_roc_curve.png')
+plt.show()
+
+# Find correctly classified and misclassified examples
+correct_indices = np.where(y_test_pred == y_test_filtered)[0]
+incorrect_indices = np.where(y_test_pred != y_test_filtered)[0]
+
+# Display a few examples
+if len(correct_indices) > 0:
+    idx = correct_indices[0]
+    class_name = "Trouser" if y_test_filtered[idx] == trouser_class else "Pullover"
+    display_image(x_test_filtered[idx], f"Correctly Classified: {class_name}")
+
+if len(incorrect_indices) > 0:
+    idx = incorrect_indices[0]
+    true_class = "Trouser" if y_test_filtered[idx] == trouser_class else "Pullover"
+    pred_class = "Trouser" if y_test_pred[idx] == trouser_class else "Pullover"
+    display_image(x_test_filtered[idx], f"Misclassified: True={true_class}, Pred={pred_class}")
