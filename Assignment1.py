@@ -2,6 +2,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import sklearn
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score
 # %matplotlib inline
 from numpy import trapz
 
@@ -107,30 +110,40 @@ print("\nImplementing Naive Bayes from scratch...")
 n_samples = len(x_train_filtered)
 classes = np.unique(y_train_filtered)
 n_classes = len(classes)
+print(f'')
 
 # Initialize arrays to store our probabilities
 class_priors = np.zeros(n_classes)
+print(f'Class priors initialized: {class_priors}')
 pixel_probs = np.zeros((n_classes, x_train_filtered.shape[1], 2))
+print(f'Pixel probabilities initialized: {pixel_probs}')
 
 for i, c in enumerate(classes):
     # every sample of this class
     x_c = x_train_filtered[y_train_filtered == c]
+    print(f'Instance of class in training data: {x_c}')
 
     # prior probability = count of class / total samples in data
     class_priors[i] = len(x_c) / n_samples
+    print(f'Calculating class prior for {i}, current length of x_c: {len(x_c)}, current n_samples: {n_samples}')
+    print(f'Class prior {i} = {class_priors[i]}')
 
     # calc prob of each pixel being 1 for this class
     # add 1 for Laplace smoothing (avoid zero probabilities)
     n_samples_c = len(x_c)
+    print(f'N samples c: {n_samples_c}')
 
     # count how many times each pixel is 1 in this class
     pixel_one_counts = np.sum(x_c, axis=0) + 1 # +1 is Laplace smoothing
+    print(f'Pixel one counts: {pixel_one_counts}')
 
     # probability of pixel being 1 given the class (with laplace smoothing)
-    pixel_probs[i, :, 1] = pixel_one_counts / (n_samples_c +2)
+    pixel_probs[i, :, 1] = pixel_one_counts / (n_samples_c + 2)
+    print(f'Pixel probability of being 1: {pixel_probs[i, :, 1]}')
 
     # probability of pixel being 0 given the class (with laplace smoothing)
     pixel_probs[i, :, 0] = 1 - pixel_probs[i, :, 1]
+    print(f'Pixel probability of being 0: {pixel_probs[i, :, 0]}')
 
 print("Prior probabilities: ")
 for i, c in enumerate(classes):
@@ -186,7 +199,8 @@ print(f"Training accuracy: {train_accuracy:.4f}")
 print(f"Testing accuracy: {test_accuracy:.4f}")
 
 
-# Calculate ROC manually and plot ROC curve
+# -------------------- Calculate Receiver Operating Characteristics (ROC) manually and plot ROC curve --------------------
+# ROC curve is graphical plot that illustrates the diagnostic ability of a binary classifier system as its discrimination threshold is varied
 def calculate_roc_curve(y_true, probs, positive_class):
     # parameters : y_true=true labels, probs = predicted probabilities for the pos class, positive class = class to treat as positive
     # Convert to binary problem (1 for positive class, 0 for others)
@@ -197,6 +211,8 @@ def calculate_roc_curve(y_true, probs, positive_class):
     y_binary_sorted = y_binary[sorted_indices]
 
     # Calculated TPR and FPR for different thresholds
+    # TPR = true positive rate = (true positives)/(total actual positives) = recall
+    # FPR = false positive rate = (false positives)/(total actual negatives)
     tpr_list = []
     fpr_list = []
 
@@ -227,14 +243,15 @@ def calculate_roc_curve(y_true, probs, positive_class):
         fpr_list.append(fpr)
 
     # Calculate AUC using the trapezoidal rule
-    auc = 0
+    area_under_curve = 0
     for i in range(1, len(fpr_list)):
-        auc += (fpr_list[i] - fpr_list[i - 1]) * (tpr_list[i] + tpr_list[i - 1]) / 2
+        area_under_curve += (fpr_list[i] - fpr_list[i - 1]) * (tpr_list[i] + tpr_list[i - 1]) / 2
 
-    return tpr_list, fpr_list, auc
+    return tpr_list, fpr_list, area_under_curve
 
 # calculate probabilities for the roc curve
 test_probs = predict_proba(x_test_filtered, classes, class_priors, pixel_probs)
+print(f'Probabilities for ROC curve: {test_probs}')
 
 plt.figure(figsize=(10,6))
 
@@ -278,3 +295,62 @@ if len(incorrect_indices) > 0:
     true_class = "Trouser" if y_test_filtered[idx] == trouser_class else "Pullover"
     pred_class = "Trouser" if y_test_pred[idx] == trouser_class else "Pullover"
     display_image(x_test_filtered[idx], f"Misclassified: True={true_class}, Pred={pred_class}")
+
+
+### ====================== DECISION TREE MACHINE LEARNING MODEL ===========================
+# Use Decision tree technique to differentiate classify samples between trouser and pullover
+# You should use gini index for discriminatory features and maximum tree height should be 10
+
+# initialize decision tree with gini index and max depth 10
+dt_classifier = DecisionTreeClassifier(criterion='gini', max_depth=10)
+
+# train decision tree
+dt_classifier.fit(x_train_filtered, y_train_filtered)
+
+# prediction
+y_train_prediction_dt = dt_classifier.predict(x_train_filtered)
+y_test_prediction_dt = dt_classifier.predict(x_test_filtered)
+
+# evaluating accuracy of decision tree prediction
+train_accuracy_dt = accuracy_score(y_train_filtered, y_train_prediction_dt)
+test_accuracy_dt = accuracy_score(y_test_filtered, y_test_prediction_dt)
+
+# calculating recall and precision
+precision_dt = precision_score(y_test_filtered, y_train_prediction_dt)
+recall_dt = recall_score(y_test_filtered, y_test_prediction_dt)
+
+print(f'Decision Tree training accuracy: {train_accuracy_dt}')
+print(f'Decision Tree testing accuracy: {test_accuracy_dt}')
+
+
+### ====================== COMPARISON AND ANALYSIS ===========================
+# Using both training and testing sets, compute class-wise accuracy, precision, and recall of both methods
+#
+
+# where the models differ in results / prediction
+incorrect_decision_tree = np.where(y_test_prediction_dt != y_test_filtered)[0]
+incorrect_naive_bayes = np.where(y_test_pred != y_test_filtered)[0]
+
+for i in incorrect_decision_tree:
+    if i not in incorrect_naive_bayes:
+        print(f'Index {i}: Naive Bayes correct, Decision Tree incorrect')
+        display_image(x_test_filtered[i], "Naive Bayes correct, DT wrong")
+        break
+
+for i in incorrect_naive_bayes:
+    if i not in incorrect_decision_tree:
+        print(f'Index {i}: Decision Tree correct, Naive Bayes incorrect')
+        display_image(x_test_filtered[i], "Decision Tree correct, Naive Bayes incorrect")
+        break
+
+
+## Based on the accuracy on training and test sets, comment if any of the classifiers suffer from underfitting or overfitting. Explain why so.
+# Neither classifiers suffer from underfitting nor overfitting. The NB training accuracy was 93.18% and the testing accuracy was 93.40%. The Decision Tree training accuracy was 99.16% and the testing accuracy was 97.35%.
+# For either model to be underfitting, both the training and testing accuracy would have to be similar values that are low. However, both have a high accuracy percentage. Furthermore, for the models to be
+# overfitted, they would have to be too accurate on the training data and less accurate on the testing data. However, both models have a relatively high accuracy for training and testing. There is a slightly greater difference
+# between the Decision tree training and testing accuracy compared to the Naive Bayes accuracies, so the Decision tree may be slightly more overfitted compared to the Naive Bayes classifier.
+
+## Based on the data distribution, should we choose accuracy as the main metric? or should it be precision or recall? Explain the reason.
+## The main metric should be able to assess model’s correct performance (No diplomatic answers).
+
+## Compare the strengths and weaknesses of each model. From the test set, you can share some examples correctly predicted by one model but mispredicted by another.
