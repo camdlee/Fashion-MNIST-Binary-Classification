@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import sklearn
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.preprocessing import MinMaxScaler
 # %matplotlib inline
 from numpy import trapz
 
@@ -22,10 +23,10 @@ test_labels_df = pd.read_csv('test_labels.csv', header=None)
 x_test = test_images_df.values
 y_test = test_labels_df.values.ravel()
 
-print(f'Num of rows, and columns in training images data : {x_train.shape}')
-print(f'Num of rows, and columns in training labels data : {y_train.shape}')
+# print(f'Num of rows, and columns in training images data : {x_train.shape}')
+# print(f'Num of rows, and columns in training labels data : {y_train.shape}')
 
-print(f'First entry in training data : {x_train[1]}')
+# print(f'First entry in training data : {x_train[1]}')
 
 # Printing out the unique classes in our label files. Should match with below
 print("Class distribution in training set: ", np.unique(y_train))
@@ -44,9 +45,9 @@ def binarize_images(images, threshold=127):
 # Default binarization with threshold 127
 x_train_bin = binarize_images(x_train)
 # print(f'Training Data Binarized: {x_train_bin}')
-print(f'First entry in binarized training data: {x_train_bin[1]}')
+# print(f'First entry in binarized training data: {x_train_bin[1]}')
 x_test_bin = binarize_images(x_test)
-print(f'Testing Data Binarized: {x_test_bin}')
+# print(f'Testing Data Binarized: {x_test_bin}')
 
 trouser_class = 1
 pullover_class = 2
@@ -61,6 +62,8 @@ y_train_filtered = y_train[filtering_indices_train]
 
 x_test_filtered = x_test_bin[filtering_indices_test]
 y_test_filtered = y_test[filtering_indices_test]
+print(f'Images Filtered: {x_train_filtered}')
+print(f'Labels Filtered: {y_train_filtered}')
 
 # Printing to see what our data looks like now
 print(f'Number of training samples (Trousers and Pullovers only): {len(x_train_filtered)}')
@@ -110,7 +113,6 @@ print("\nImplementing Naive Bayes from scratch...")
 n_samples = len(x_train_filtered)
 classes = np.unique(y_train_filtered)
 n_classes = len(classes)
-print(f'')
 
 # Initialize arrays to store our probabilities
 class_priors = np.zeros(n_classes)
@@ -125,8 +127,8 @@ for i, c in enumerate(classes):
 
     # prior probability = count of class / total samples in data
     class_priors[i] = len(x_c) / n_samples
-    print(f'Calculating class prior for {i}, current length of x_c: {len(x_c)}, current n_samples: {n_samples}')
-    print(f'Class prior {i} = {class_priors[i]}')
+    print(f'Calculating class prior for {c}, current length of x_c: {len(x_c)}, current n_samples: {n_samples}')
+    print(f'Class prior {c} = {class_priors[i]}')
 
     # calc prob of each pixel being 1 for this class
     # add 1 for Laplace smoothing (avoid zero probabilities)
@@ -139,11 +141,11 @@ for i, c in enumerate(classes):
 
     # probability of pixel being 1 given the class (with laplace smoothing)
     pixel_probs[i, :, 1] = pixel_one_counts / (n_samples_c + 2)
-    print(f'Pixel probability of being 1: {pixel_probs[i, :, 1]}')
+    # print(f'Pixel probability of being 1: {pixel_probs[i, :, 1]}')
 
     # probability of pixel being 0 given the class (with laplace smoothing)
     pixel_probs[i, :, 0] = 1 - pixel_probs[i, :, 1]
-    print(f'Pixel probability of being 0: {pixel_probs[i, :, 0]}')
+    # print(f'Pixel probability of being 0: {pixel_probs[i, :, 0]}')
 
 print("Prior probabilities: ")
 for i, c in enumerate(classes):
@@ -172,19 +174,32 @@ def predict_proba(x, classes, class_priors, pixel_probs):
 
         # sum the log probabilities of all pixels
         log_probs[:, i] = class_prior + np.sum(np.log(pixel_probs_for_values), axis=1)
+    print(f'Log probs: {log_probs}')
+    ## TODO - scale
+    scaler = MinMaxScaler()
+    scaled = scaler.fit_transform(log_probs)
+    scaled_df = pd.DataFrame(scaled)
+    scaled_df.columns = ["trousers", "pullovers"]
+
+    print(f'scaled prediction statistics: {scaled_df.head()}')
+
+    # calculate threshold probability of
 
     # Convert from log probabilities to actual probabilities
     # Subtract max for numerical stability
+    ### TODO - review threshold and how the 2 probabilities columns are determined
     max_log_probs = np.max(log_probs, axis=1, keepdims=True)
     ex_probs = np.exp(log_probs - max_log_probs)
     probs = ex_probs / np.sum(ex_probs, axis=1, keepdims=True)
 
     return probs
 
-# Function to predict class labels
+# Function to predict class labels - comparing between trouser column and pullover column
 def predict(x, classes, class_priors, pixel_probs):
     probs = predict_proba(x, classes, class_priors, pixel_probs)
+    ## print(f'Probabilities: {probs}')
     return classes[np.argmax(probs, axis=1)]
+### - look at the thresholds
 
 # Use prediction function to see what the predicted y values would be
 y_train_pred = predict(x_train_filtered, classes, class_priors, pixel_probs)
@@ -198,6 +213,19 @@ test_accuracy = np.mean(y_test_filtered == y_test_pred)
 print(f"Training accuracy: {train_accuracy:.4f}")
 print(f"Testing accuracy: {test_accuracy:.4f}")
 
+# Manually calculating precision and recall for NB
+nb_tp = np.sum((y_test_filtered == 1) & (y_test_pred == 1))
+nb_fp = np.sum((y_test_filtered == 0) & (y_test_pred == 1))
+nb_fn = np.sum((y_test_filtered == 1) & (y_test_pred == 0))
+nb_tn = np.sum((y_test_filtered == 0) & (y_test_pred == 0))
+
+print(f'Naive Bayes:\nTruePos: {nb_tp}, FalsePos: {nb_fp}, FalseNeg: {nb_fn}, TrueNeg: {nb_tn}')
+
+nb_precision = nb_tp / (nb_tp + nb_fp) if (nb_tp + nb_fp) > 0 else 0
+nb_recall = nb_tp / (nb_tp + nb_fn) if (nb_tp + nb_fn) > 0 else 0
+
+print(f'Naive Bayes precision: {nb_precision:.4f}')
+print(f'Naive Bayes recall: {nb_recall:.4f}')
 
 # -------------------- Calculate Receiver Operating Characteristics (ROC) manually and plot ROC curve --------------------
 # ROC curve is graphical plot that illustrates the diagnostic ability of a binary classifier system as its discrimination threshold is varied
@@ -316,8 +344,8 @@ train_accuracy_dt = accuracy_score(y_train_filtered, y_train_prediction_dt)
 test_accuracy_dt = accuracy_score(y_test_filtered, y_test_prediction_dt)
 
 # calculating recall and precision
-precision_dt = precision_score(y_test_filtered, y_train_prediction_dt)
-recall_dt = recall_score(y_test_filtered, y_test_prediction_dt)
+# precision_dt = precision_score(y_test_filtered, y_train_prediction_dt)
+# recall_dt = recall_score(y_test_filtered, y_test_prediction_dt)
 
 print(f'Decision Tree training accuracy: {train_accuracy_dt}')
 print(f'Decision Tree testing accuracy: {test_accuracy_dt}')
@@ -327,21 +355,7 @@ print(f'Decision Tree testing accuracy: {test_accuracy_dt}')
 # Using both training and testing sets, compute class-wise accuracy, precision, and recall of both methods
 #
 
-# where the models differ in results / prediction
-incorrect_decision_tree = np.where(y_test_prediction_dt != y_test_filtered)[0]
-incorrect_naive_bayes = np.where(y_test_pred != y_test_filtered)[0]
 
-for i in incorrect_decision_tree:
-    if i not in incorrect_naive_bayes:
-        print(f'Index {i}: Naive Bayes correct, Decision Tree incorrect')
-        display_image(x_test_filtered[i], "Naive Bayes correct, DT wrong")
-        break
-
-for i in incorrect_naive_bayes:
-    if i not in incorrect_decision_tree:
-        print(f'Index {i}: Decision Tree correct, Naive Bayes incorrect')
-        display_image(x_test_filtered[i], "Decision Tree correct, Naive Bayes incorrect")
-        break
 
 
 ## Based on the accuracy on training and test sets, comment if any of the classifiers suffer from underfitting or overfitting. Explain why so.
@@ -354,3 +368,21 @@ for i in incorrect_naive_bayes:
 ## The main metric should be able to assess model’s correct performance (No diplomatic answers).
 
 ## Compare the strengths and weaknesses of each model. From the test set, you can share some examples correctly predicted by one model but mispredicted by another.
+# Below we can see how the number of incorrect predictions for the two classifiers.
+incorrect_decision_tree = np.where(y_test_prediction_dt != y_test_filtered)[0]
+incorrect_naive_bayes = np.where(y_test_pred != y_test_filtered)[0]
+
+print(f'Length of incorrect predictions in decision tree: {incorrect_decision_tree.shape}')
+print(f'Length of incorrect predictions in naive bayes: {incorrect_naive_bayes.shape}')
+
+for i in incorrect_decision_tree:
+    if i not in incorrect_naive_bayes:
+        print(f'Index {i}: Naive Bayes correct, Decision Tree incorrect')
+        display_image(x_test_filtered[i], "Naive Bayes correct, DT wrong")
+        break
+
+for i in incorrect_naive_bayes:
+    if i not in incorrect_decision_tree:
+        print(f'Index {i}: Decision Tree correct, Naive Bayes incorrect')
+        display_image(x_test_filtered[i], "Decision Tree correct, Naive Bayes incorrect")
+        break
